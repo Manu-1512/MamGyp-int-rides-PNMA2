@@ -1,0 +1,157 @@
+library(Seurat)
+
+ dat <- as.matrix(dat)
+ library(patchwork)
+library(dplyr)
+
+
+dat <- read.delim("~/Downloads/GSE60361_C1-3005-Expression.txt", stringsAsFactors=F)
+dat <- dat[!duplicated(dat[,1]),]
+row.names(dat) <- dat[,1]
+ dat <- dat[,-1]
+ 
+ dat <- as.matrix(dat)
+pbmc <- CreateSeuratObject(counts = dat, project = "pbmc3k", min.cells = 5, min.features = 1000)
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes)
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+ pbmc <- FindNeighbors(pbmc, dims = 1:5)
+ pbmc <- FindClusters(pbmc, resolution = 0.5)
+ VlnPlot(pbmc, c("Dpysl2","Pnma2"))
+ dev.off()
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+DimPlot(pbmc, reduction = "umap")
+dev.off()
+saveRDS(pbmc, file = "mouse_brain_scRNAseq.rds")
+
+
+
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+
+
+data <- read.csv("~/Downloads/trimmed_means.csv", stringsAsFactors=F, row.names=1)
+
+
+library(vioplot)
+
+envelop <- as.numeric(data[grep("PNMA2", row.names(data)),])
+
+
+png("DPYSL2_human_scRNAseq_expression_violinplot.png",  width = 14.7, height = 14.8, units = "cm", res = 600, pointsize = 12)
+ vioplot(envelop[5:48],envelop[49:120], envelop[111:125],envelop[116:127], envelop[1:14],  ylim=c(0,10), col=c( "yellow3", "tan", "tomato", "rosybrown","paleturquoise"), 
+ border="black", lwd=2,  ylab="Log2 FPKM+1", pchMed=19,rectCol=c("white"), 
+ colMed="darkred", wex=1,lty=7, las=2, names=c("Excitatory", "Inhibitory", "Oligodendrocyte", "OPC","Astrocyte"))
+dev.off()
+savehistory("PNMA2_DPYSL2_mouse_scRNAseq_expression_violinplot.Rhistory")
+
+
+
+
+Idents(pbmc, WhichCells(object = pbmc, expression = (Map2 > 1 & Neurod6 > 1), slot = 'data')) <- "Excitatory"
+
+Idents(pbmc, WhichCells(object = pbmc, expression = (Gad1 > 1 & Gad2 > 1), slot = 'data')) <- "Inhibitory"
+
+Idents(pbmc, WhichCells(object = pbmc, expression = (Olig2 > 1 & Plp1 > 1), slot = 'data')) <- "Oligo"
+
+Idents(pbmc, WhichCells(object = pbmc, expression = (Pdgfra > 1), slot = 'data')) <- "OPC"
+
+Idents(pbmc, WhichCells(object = pbmc, expression = (Csf1r > 1 & Tgfbr1 > 1), slot = 'data')) <- "Microglia"
+
+Idents(pbmc, WhichCells(object = pbmc, expression = (Slc1a2 > 1 & Slc1a3 > 1), slot = 'data')) <- "Astrocyte"
+
+
+unique(Idents(pbmc))
+new.cluster.ids <- c("Inhibitory", "Excitatory","Oligo","Excitatory","Excitatory","bla","Inhibitory","glial","glial","Oligo","OPC","Oligo","Oligo","bla","bla","Oligo")
+names(new.cluster.ids) <- levels(pbmc)
+pbmc <- RenameIdents(pbmc, new.cluster.ids)
+VlnPlot(pbmc, c("Gad2", "Pnma2", "Neurod6","Olig2"))
+pbmc <- WhichCells(pbmc, idents=c("Inhibitory", "Excitatory","Oligo","Microglia","OPC", "Astrocyte")
+)
+
+pbmc <- subset(x = pbmc, idents = c("Inhibitory", "Excitatory","Oligo","OPC", "glial"))
+
+saveRDS(pbmc, file = "mouse_brain_annotated_scRNAseq.rds")
+
+
+png("PNMA2_DPYSL2_mouse_scRNAseq_expression_violinplot.png",  width = 22.7, height = 14.8, units = "cm", res = 600, pointsize = 12)
+VlnPlot(pbmc, c("Pnma2", "Dpysl2"), cols=c("yellow3", "tan", "tomato", "rosybrown", "paleturquoise"), log=F, pt.size=0, same.y.lims=F)
+dev.off()
+savehistory("PNMA2_DPYSL2_mouse_scRNAseq_expression_violinplot.Rhistory")
+
+#####################
+
+library(Seurat)
+library(dplyr)
+dat <- read.delim("human_cortex_scRNAseq_FPKM.tsv", row.names=1)
+head(dat[,1:5])
+colnames(dat) <- gsub("SRR","ID_SRR", colnames(dat))
+nbt.data <- log2(dat+1)
+corner(nbt.data)
+nbt=new("seurat",raw.data=nbt.data)
+nbt
+nbt=setup(nbt,project="NBT",min.cells = 5,names.field = 1,names.delim = "_",min.genes = 30,is.expr=1,)
+nbt
+
+nbt=mean.var.plot(nbt,y.cutoff = 0.7,x.low.cutoff = 2,fxn.x = expMean,fxn.y = logVarDivMean)
+dev.off()
+
+
+
+nbt.sig.genes=pca.sig.genes(nbt,1:12,pval.cut = 1e-1,max.per.pc = 200)
+
+nbt=pca(nbt,pc.genes=nbt.sig.genes,do.print = FALSE)
+
+
+nbt=jackStraw(nbt,num.replicate = 1,do.print = FALSE)
+nbt=run_tsne(nbt,dims.use = 1:5,max_iter=20)
+
+nbt=DBclust_dimension(nbt,1,2,reduction.use = "tsne",G.use = 4,set.ident = TRUE)
+tsne.plot(nbt,pt.size = 1)
+dev.off()
+
+
+dat <- log2(dat+1)
+
+write.table(dat, "human_cortex_scRNAseq_log2_FPKM.tsv", row.names=TRUE, col.names=NA, sep="\t", dec=".", quote=FALSE)
+
+
+dat <- read.delim("Cortex_single_cells_genes_TPM.tsv", row.names=1)
+
+mark <- read.delim("Markers_6_celltypes_cortex.tsv", row.names=1)
+
+library(Seurat)
+
+pbmc <- CreateSeuratObject(counts = dat, project = "pbmc3k", min.cells = 3, min.features = 2000)
+
+ pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor=1000000)
+
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+
+all.genes <- rownames(pbmc)
+
+pbmc <- ScaleData(pbmc, features = all.genes)
+
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+pbmc <- JackStraw(pbmc, num.replicate = 100)
+
+pbmc <- ScoreJackStraw(pbmc, dims = 1:20)
+
+ JackStrawPlot(pbmc, dims = 1:15)
+dev.off()
+
+pbmc <- FindNeighbors(pbmc, dims = 1:6)
+
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = F, min.pct = 0.25, logfc.threshold = 0.25)
+
+png("PNMA2_scRNAseq_SMART_seq_Brain.png",  width = 18.7, height = 18.8, units = "cm", res = 600, pointsize = 12)
+VlnPlot(pbmc, c("MAP2", "PLP1", "STMN2", "CD74", "SLC1A2", "IFITM1", "PNMA2"), pt.size=0)
+dev.off()
+saveRDS("Brain_PNAS.rds")
+saveRDS(pbmc, "Brain_PNAS.rds")
+savehistory("Brain_PNAS.Rhistory")
+
