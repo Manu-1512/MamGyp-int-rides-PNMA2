@@ -1,0 +1,120 @@
+
+library(ggplot2)
+library(reshape2)
+library(scales)
+data_summary <- 
+function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE)/sqrt(1+length(x[[col]])))
+  }
+  
+  
+data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+
+df <- melt(candis[19,])
+df
+df$variable <- as.character(df$variable)
+df$value <- as.numeric(candis[19,])
+df2 <- data_summary(df, varname="value", groupnames=c("variable"))
+
+p<- ggplot(df2, aes(x=variable, y=value, fill=sd)) + 
+  geom_bar(stat="identity", color="black",  fill= c(rep("steelblue", 32)),
+           alpha = 1,position=position_dodge()) +
+  geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.3,
+                 position=position_dodge(.9)) + theme_classic()
+ 
+p + scale_y_continuous(limits=c(1, 8), oob=rescale_none)
+dev.off()
+
+png("PNMA2_expression_Human_Brain.png",  width = 22, height = 12, units = "cm", res = 600, pointsize = 12)
+p + scale_y_continuous(limits=c(1, 8), oob=rescale_none)
+dev.off()
+
+candis[19,]
+
+
+
+
+
+####################
+
+library(ggplot2)
+library(reshape2)
+library(scales)
+data_summary <- 
+function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE)/sqrt(length(x[[col]])))
+  }
+data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+
+df <- melt(dat_pnma2[1,])
+
+
+df$value <- as.numeric(log2(dat_pnma2[1,]+1))
+df2 <- data_summary(df, varname="value", groupnames=c("variable"))
+
+p<- ggplot(df2, aes(x=variable, y=value, fill=sd)) + 
+  geom_bar(stat="identity", color="black",  fill= c(rep("steelblue", 32)),
+           alpha = 1,position=position_dodge()) +
+  geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.3,
+                 position=position_dodge(.9)) + theme_classic()
+ 
+
+png("DPYSL2_expression_Human_Brain.png",  width = 22, height = 12, units = "cm", res = 600, pointsize = 12)
+p + scale_y_continuous(limits=c(5, 9), oob=rescale_none)
+dev.off()
+
+
+df$value <- as.numeric(log2(dat_pnma2[2,]+1))
+df2$sd <- df2$sd/1.5
+df2 <- data_summary(df, varname="value", groupnames=c("variable"))
+
+p<- ggplot(df2, aes(x=variable, y=value, fill=sd)) + 
+  geom_bar(stat="identity", color="black",  fill= c(rep("steelblue", 32)),
+           alpha = 1,position=position_dodge()) +
+  geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.3,
+                 position=position_dodge(.9)) + theme_classic()
+ 
+p + scale_y_continuous(limits=c(1, 8), oob=rescale_none)
+dev.off()
+png("PNMA2_expression_Macaque_Brain.png",  width = 22, height = 12, units = "cm", res = 600, pointsize = 12)
+p + scale_y_continuous(limits=c(1, 8), oob=rescale_none)
+dev.off()
+
+#colnames
+#[1] "Amygdala"                  "Caudate"                  
+ #[3] "Cerebellar_Grey_Matter"    "Cerebellar_White_Matter"  
+ #[5] "Cingulate_Anterior"        "Cingulate_Posterior"      
+ #[7] "Corpus_Callosum_Anterior"  "Corpus_Callosum_Posterior"
+ #[9] "Entorhinal_Cortex"         "Globus_Pallidus"          
+#[11] "Hippocampus"               "Hypothalamus"             
+#[13] "Inferior_Temporal"         "Insular_Posterior_Cortex" 
+#[15] "Internal_Capsule"          "Nucleus_Accumbens"        
+#[17] "Orbitofrontal"             "PF_Dorsolateral"          
+#[19] "PF_Ventrolateral"          "PFC"                      
+#[21] "Precuneus"                 "Premotor"                 
+#[23] "primary_Auditory"          "primary_Motor"            
+#[25] "primary_Somatosensory"     "primary_Visual"           
+#[27] "Putamen"                   "secondary_Auditory"       
+#[29] "secondary_Visual"          "Substantia_Nigra"         
+#[31] "Supramarginal"             "Thalamus"
+
+
+
+
+
